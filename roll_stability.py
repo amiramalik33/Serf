@@ -122,5 +122,14 @@ def get_FoilForces(phi, gamma, Ll, Rl, lb, h, c, v, aoa):
     
     return [F, T]
     
+def compute_accels(T, I, m, phi, gamma, Ll, Rl, lb, h, c, v, aoa):
+    
+    [F, T] = get_FoilForces(phi, gamma, Ll, Rl, lb, h, c, v, aoa)
+    
+    d2phi_dt2 = T/I
+    
+    d2y_dt2 = F/m
+    
+    return [d2phi_dt2, d2y_dt2]
     
     
