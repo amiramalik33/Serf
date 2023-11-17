@@ -104,7 +104,16 @@ def get_FoilForces(phi, gamma, Ll, Rl, lb, h, c, v, aoa):
     Calls get_lengths and get_lift for each foil surface
     """
     
-    [Laa, Lwa, Raa, Rwa, Lwl, Lal, Rwl, Ral] = get_lengths(phi, gamma, Ll, Rl, lb, h)
+    Ls = get_lengths(phi, gamma, Ll, Rl, lb, h)
+    
+    Laa = Ls[0]
+    Lwa = Ls[1]
+    Raa = Ls[2]
+    Rwa = Ls[3]
+    Lwl = Ls[4]
+    Lal = Ls[5]
+    Rwl = Ls[6]
+    Ral = Ls[7]
     
     F_LW = get_lift(Lwl, c, v, aoa)
     F_LA = get_lift(Lal, c, v, aoa)
@@ -124,7 +133,10 @@ def get_FoilForces(phi, gamma, Ll, Rl, lb, h, c, v, aoa):
     
 def compute_accels(T, I, m, phi, gamma, Ll, Rl, lb, h, c, v, aoa):
     
-    [F, T] = get_FoilForces(phi, gamma, Ll, Rl, lb, h, c, v, aoa)
+    FT = get_FoilForces(phi, gamma, Ll, Rl, lb, h, c, v, aoa)
+    
+    F = FT[0]
+    T = FT[1]
     
     d2phi_dt2 = T/I
     
