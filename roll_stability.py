@@ -82,3 +82,22 @@ def get_lift(b, c, v, aoa):
     L = 1/2*cL*b*c*rho*(v**2)
     
     return L
+
+def get_Torque(phi, gamma, Ll, Rl, lb, h, c, v, aoa):
+    """
+    Get torques: calls get_lengths and get_lift for each foil surface
+    """
+    
+    [Laa, Lwa, Raa, Rwa, Lwl, Lal, Rwl, Ral] = get_lengths(phi, gamma, Ll, Rl, lb, h)
+    
+    T_LW = (get_lift(Lwl, c, v, aoa))*Lwa
+    T_LA = (get_lift(Lal, c, v, aoa))*Laa
+    T_RW = (get_lift(Rwl, c, v, aoa))*Rwa
+    T_RA = (get_lift(Ral, c, v, aoa))*Raa
+    
+    T = (T_LW + T_LA) - (T_RW + T_RA)
+    
+    return T
+    
+    
+    
