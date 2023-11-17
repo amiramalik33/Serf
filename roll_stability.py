@@ -63,21 +63,36 @@ def get_lengths(phi, gamma, Ll, Rl, lb, h):
     
     return [Laa, Lwa, Raa, Rwa, Lwl, Lal, Rwl, Ral]
 
-
-def get_lift(b, c, v, aoa):
+def get_cL(aoa):
+    """
+    Returns lift coefficient given AOA
+    """
     
-    rho = 998
+    """
+    #Simple Lookup Aero Database for Modified Airfoil
     
-    #Silly Aero Database for NACA
     cLs = {0.1:0.2,
            0.2:0.3,
            0.3:0.4
         }
     
     try:
-        cL = cLs[aoa]
+        cL = cLs[round(aoa,1)]
     except:
-        print("invalid AOA in get_lift")
+        print("AOA out of range of ADB")
+    """
+    
+    return aoa/aoa
+
+def get_lift(b, c, v, aoa):
+    """
+    Get lift for a rectangular wing
+    Uses aero database to look up cL given AOA
+    """
+    
+    rho = 998
+    
+    cL = get_cL(aoa)
     
     L = 1/2*cL*b*c*rho*(v**2)
     
