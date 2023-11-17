@@ -62,3 +62,23 @@ def get_lengths(phi, gamma, Ll, Rl, lb, h):
     Rwa = lb + Ral + Rwl/2
     
     return [Laa, Lwa, Raa, Rwa, Lwl, Lal, Rwl, Ral]
+
+
+def get_lift(b, c, v, aoa):
+    
+    rho = 998
+    
+    #Silly Aero Database for NACA
+    cLs = {0.1:0.2,
+           0.2:0.3,
+           0.3:0.4
+        }
+    
+    try:
+        cL = cLs[aoa]
+    except:
+        print("invalid AOA in get_lift")
+    
+    L = 1/2*cL*b*c*rho*(v**2)
+    
+    return L
