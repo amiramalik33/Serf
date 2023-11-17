@@ -98,21 +98,29 @@ def get_lift(b, c, v, aoa):
     
     return L
 
-def get_Torque(phi, gamma, Ll, Rl, lb, h, c, v, aoa):
+def get_FoilForces(phi, gamma, Ll, Rl, lb, h, c, v, aoa):
     """
-    Get torques: calls get_lengths and get_lift for each foil surface
+    Get torques and forces of foils
+    Calls get_lengths and get_lift for each foil surface
     """
     
     [Laa, Lwa, Raa, Rwa, Lwl, Lal, Rwl, Ral] = get_lengths(phi, gamma, Ll, Rl, lb, h)
     
-    T_LW = (get_lift(Lwl, c, v, aoa))*Lwa
-    T_LA = (get_lift(Lal, c, v, aoa))*Laa
-    T_RW = (get_lift(Rwl, c, v, aoa))*Rwa
-    T_RA = (get_lift(Ral, c, v, aoa))*Raa
+    F_LW = get_lift(Lwl, c, v, aoa)
+    F_LA = get_lift(Lal, c, v, aoa)
+    F_RW = get_lift(Rwl, c, v, aoa)
+    F_RA = get_lift(Ral, c, v, aoa)
+    
+    T_LW = F_LW*Lwa
+    T_LA = F_LA*Laa
+    T_RW = F_RW*Rwa
+    T_RA = F_RA*Raa
+    
+    F = F_LW + F_LA + F_RW + F_RA
     
     T = (T_LW + T_LA) - (T_RW + T_RA)
     
-    return T
+    return [F, T]
     
     
     
