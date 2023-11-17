@@ -131,7 +131,7 @@ def get_FoilForces(phi, gamma, Ll, Rl, lb, h, c, v, aoa):
     
     return [F, T]
     
-def compute_accels(T, I, m, phi, gamma, Ll, Rl, lb, h, c, v, aoa):
+def compute_accels(I, m, phi, gamma, Ll, Rl, lb, h, c, v, aoa):
     
     FT = get_FoilForces(phi, gamma, Ll, Rl, lb, h, c, v, aoa)
     
@@ -143,5 +143,35 @@ def compute_accels(T, I, m, phi, gamma, Ll, Rl, lb, h, c, v, aoa):
     d2y_dt2 = F/m
     
     return [d2phi_dt2, d2y_dt2]
+    
+    
+def FE_next(U, dt, I, m, phi, gamma, Ll, Rl, lb, h, c, v, aoa):
+    
+    accels = compute_accels(I, m, phi, gamma, Ll, Rl, lb, h, c, v, aoa)
+    
+    
+    t      = U(1, -1);
+    y      = U(2, -1);
+    phi    = U(3, -1);
+    dydt   = U(4, -1);
+    dphidt = U(5, -1);
+
+    d2phi_dt2 = accels[0]
+    d2y_dt2 = accels[1] - m*9.81
+    
+    #Forward Euler
+    t_next = t + dt
+    
+    dydt_next = dydt + d2y_dt2*dt
+    y_next = y + dydt*dt
+    
+    dphidt_next = dphidt + d2phi_dt2*dt
+    phi_next = phi + dphidt*dt
+    
+    U_next = [t_next, y_next, phi_next, dydt_next, dphidt_next]
+    
+    return U_next
+
+    
     
     
