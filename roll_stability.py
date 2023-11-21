@@ -148,8 +148,20 @@ def compute_accels(I, m, phi, gamma, Ll, Rl, lb, h, c, v, aoa):
 def FE_next(U, dt, I, m, phi, gamma, Ll, Rl, lb, h, c, v, aoa):
     
     accels = compute_accels(I, m, phi, gamma, Ll, Rl, lb, h, c, v, aoa)
+
+    #U = [t, x, dxdt, y, dydt, z, dzdt, p, dpdt, q, dqdt, r, drdt]
+    """
+    t, time
+    x, forward position
+    dxdt is related to z at steady state
+    y, lateral position (maybe not needed)
+    z, height above water
+    p, roll
+    q, pitch
+    r, yaw
+    """
     
-    
+    #THE REST OF THIS IS COPY PASTE FROM TAKEOFF SIM
     t      = U(1, -1);
     y      = U(2, -1);
     phi    = U(3, -1);
