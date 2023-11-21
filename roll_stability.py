@@ -7,14 +7,19 @@ the length of the foil to the CG of the boat, a system response can be made.
 Hopefully, I will also be able to inject disturbances to height and angle
 
 TO MATH OUT:
-    Find max bank angle as function of foil length
-    Instead of vehicle database, just run simple lift equation: VDB can come later!
-    Forces to Torques (including angles :( )
     is left bank angle positive or negative? idk, but make sure you're consistent
-    transform the CG downward (the cg is currently assumed to be at the 
-                               intersection of the two foils extended above
-                               the boat, which is waaaay too high)
-    somehow make sure I can inject noise into h (height) and phi (bank angle)
+    Put all set variables in a dictionary, or global
+    All lengths per time step should be in a dictionary
+    Forces to Torques (including angles :( )
+    Break up forcing function: torques are handled in each axis separately
+
+    Long Term:
+        Find max bank angle as function of foil length
+        Create proper VDB!
+        transform the CG downward (the cg is currently assumed to be at the 
+            intersection of the two foils extended above
+            the boat, which is waaaay too high)
+        able to inject noise into h (height), bank, and pitch, also other variables if it's easy
 """
 
 from math import *
