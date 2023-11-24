@@ -65,8 +65,17 @@ def get_lengths(phi, gamma, Ll, Rl, lb, h):
     Lwa = lb + Lal + Lwl/2
     Raa = lb + Ral/2
     Rwa = lb + Ral + Rwl/2
+
+    lengths = {"Laa": Laa,
+         "Lwa": Lwa,
+         "Raa": Raa,
+         "Rwa": Rwa,
+         "Lwl": Lwl,
+         "Lal": Lal,
+         "Rwl": Rwl,
+         "Ral": Ral}
     
-    return [Laa, Lwa, Raa, Rwa, Lwl, Lal, Rwl, Ral]
+    return lengths
 
 def get_cL(aoa):
     """
@@ -102,50 +111,36 @@ def get_lift(b, c, v, aoa):
     L = 1/2*cL*b*c*rho*(v**2)
     
     return L
-
-def get_FoilForces(phi, gamma, Ll, Rl, lb, h, c, v, aoa):
-    """
-    Get torques and forces of foils
-    Calls get_lengths and get_lift for each foil surface
-    """
     
-    Ls = get_lengths(phi, gamma, Ll, Rl, lb, h)
+def compute_accels(I, m, phi, gamma, Ll, Rl, lb, h, c, v, aoa):
     
-    Laa = Ls[0]
-    Lwa = Ls[1]
-    Raa = Ls[2]
-    Rwa = Ls[3]
-    Lwl = Ls[4]
-    Lal = Ls[5]
-    Rwl = Ls[6]
-    Ral = Ls[7]
+    lengths = get_lengths(phi, gamma, Ll, Rl, lb, h)
     
-    F_LW = get_lift(Lwl, c, v, aoa)
-    F_LA = get_lift(Lal, c, v, aoa)
-    F_RW = get_lift(Rwl, c, v, aoa)
-    F_RA = get_lift(Ral, c, v, aoa)
+    F_LW = get_lift(lengths["Lwl"], c, v, aoa)
+    F_LA = get_lift(lengths["Lal"], c, v, aoa)
+    F_RW = get_lift(lengths["Rwl"], c, v, aoa)
+    F_RA = get_lift(lengths["Ral"], c, v, aoa)
     
-    T_LW = F_LW*Lwa
-    T_LA = F_LA*Laa
-    T_RW = F_RW*Rwa
-    T_RA = F_RA*Raa
+    T_LW = F_LW*lengths["Lwa"]
+    T_LA = F_LA*lengths["Laa"]
+    T_RW = F_RW*lengths["Rwa"]
+    T_RA = F_RA*lengths["Raa"]
     
     F = F_LW + F_LA + F_RW + F_RA
     
     T = (T_LW + T_LA) - (T_RW + T_RA)
+
+    Fx = 0
+    Fy = 0
+    Fz = 0
+
+    Tp = 0
+    Tq = 0
+    Tr = 0
     
-    return [F, T]
+    d2phi_dt2 = Tp/I
     
-def compute_accels(I, m, phi, gamma, Ll, Rl, lb, h, c, v, aoa):
-    
-    FT = get_FoilForces(phi, gamma, Ll, Rl, lb, h, c, v, aoa)
-    
-    F = FT[0]
-    T = FT[1]
-    
-    d2phi_dt2 = T/I
-    
-    d2y_dt2 = F/m
+    d2y_dt2 = Fy/m
     
     return [d2phi_dt2, d2y_dt2]
     
