@@ -98,6 +98,27 @@ def get_cL(aoa):
     
     return aoa/aoa
 
+def get_cD(aoa):
+    """
+    Returns drag coefficient given AOA
+    """
+    
+    """
+    #Simple Lookup Aero Database for Modified Airfoil
+    
+    cDs = {0.1:0.2,
+           0.2:0.3,
+           0.3:0.4
+        }
+    
+    try:
+        cD = cDs[round(aoa,1)]
+    except:
+        print("AOA out of range of ADB")
+    """
+    
+    return aoa/aoa
+
 def get_lift(b, c, v, aoa):
     """
     Get lift for a rectangular wing
@@ -111,6 +132,20 @@ def get_lift(b, c, v, aoa):
     L = 1/2*cL*b*c*rho*(v**2)
     
     return L
+
+def get_drag(b, c, v, aoa):
+    """
+    Get lift for a rectangular wing
+    Uses aero database to look up cL given AOA
+    """
+    
+    rho = 998
+    
+    cD = get_cD(aoa)
+    
+    D = 1/2*cD*b*c*rho*(v**2)
+    
+    return D
 
 def get_thrust(v):
     
@@ -132,20 +167,27 @@ def compute_accels(U, B, G, h, v, aoa):
     F_LA = get_lift(lengths["Lal"], G["c"], v, aoa)
     F_RW = get_lift(lengths["Rwl"], G["c"], v, aoa)
     F_RA = get_lift(lengths["Ral"], G["c"], v, aoa)
+
+    D_LW = get_drag(lengths["Lwl"], G["c"], v, aoa)
+    D_LA = get_drag(lengths["Lal"], G["c"], v, aoa)
+    D_RW = get_drag(lengths["Rwl"], G["c"], v, aoa)
+    D_RA = get_drag(lengths["Ral"], G["c"], v, aoa)
     
     Thrust = get_thrust(U["dxdt"])
 
-    T_LW = F_LW*lengths["Lwa"]
-    T_LA = F_LA*lengths["Laa"]
-    T_RW = F_RW*lengths["Rwa"]
-    T_RA = F_RA*lengths["Raa"]
+    Tp_LW = F_LW*lengths["Lwa"]
+    Tp_LA = F_LA*lengths["Laa"]
+    Tp_RW = F_RW*lengths["Rwa"]
+    Tp_RA = F_RA*lengths["Raa"]
 
-    Fx = Thrust
+    #ADD tail drag to Fx
+    #ADD tail lift to Fz
+    #ADD modification of forces by pitch, roll, yaw angle
+    Fx = Thrust - (D_LW + D_LA + D_RW + D_RA)
     Fy = F_LW*cos(gamma) + F_LA*cos(gamma) - (F_RW*cos(gamma) + F_RA*cos(gamma))
-    #ADD: tail lift
     Fz = F_LW*sin(gamma) + F_LA*sin(gamma) + (F_RW*sin(gamma) + F_RA*sin(gamma))
 
-    Tp = (T_LW + T_LA) - (T_RW + T_RA)
+    Tp = (Tp_LW + Tp_LA) - (Tp_RW + Tp_RA)
     Tq = 0
     Tr = 0
     
