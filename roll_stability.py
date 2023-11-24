@@ -111,30 +111,43 @@ def get_lift(b, c, v, aoa):
     L = 1/2*cL*b*c*rho*(v**2)
     
     return L
+
+def get_thrust(fixed):
     
-def compute_accels(I, m, phi, gamma, Ll, Rl, lb, h, c, v, aoa):
+    force = 100 #Newtons
+
+    prop_eff = .99
+    motor_eff = .80
+
+    Thrust = force*prop_eff*motor_eff
+    
+    return Thrust
+    
+def compute_accels(I, m, phi, gamma, Ll, Rl, lb, h, c, v, incidence, fixed):
     
     lengths = get_lengths(phi, gamma, Ll, Rl, lb, h)
     
+    q = 0 #pitch angle
+
+    aoa = incidence + q
+
     F_LW = get_lift(lengths["Lwl"], c, v, aoa)
     F_LA = get_lift(lengths["Lal"], c, v, aoa)
     F_RW = get_lift(lengths["Rwl"], c, v, aoa)
     F_RA = get_lift(lengths["Ral"], c, v, aoa)
     
+    Thrust = get_thrust(fixed)
+
     T_LW = F_LW*lengths["Lwa"]
     T_LA = F_LA*lengths["Laa"]
     T_RW = F_RW*lengths["Rwa"]
     T_RA = F_RA*lengths["Raa"]
-    
-    F = F_LW + F_LA + F_RW + F_RA
-    
-    T = (T_LW + T_LA) - (T_RW + T_RA)
 
-    Fx = 0
-    Fy = 0
-    Fz = 0
+    Fx = Thrust
+    Fy = F_LW*cos(gamma) + F_LA*cos(gamma) - (F_RW*cos(gamma) + F_RA*cos(gamma))
+    Fz = F_LW*sin(gamma) + F_LA*sin(gamma) + (F_RW*sin(gamma) + F_RA*sin(gamma))
 
-    Tp = 0
+    Tp = (T_LW + T_LA) - (T_RW + T_RA)
     Tq = 0
     Tr = 0
     
