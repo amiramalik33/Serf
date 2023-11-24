@@ -112,27 +112,28 @@ def get_lift(b, c, v, aoa):
     
     return L
 
-def get_thrust(fixed):
+def get_thrust(v):
     
     force = 100 #Newtons
 
     prop_eff = .99
     motor_eff = .80
+    speed_eff = v*.9
 
-    Thrust = force*prop_eff*motor_eff
+    Thrust = force*prop_eff*motor_eff*speed_eff/v
     
     return Thrust
     
-def compute_accels(B, phi, G, h, v, aoa):
+def compute_accels(U, B, G, h, v, aoa):
     
-    lengths = get_lengths(phi, G, h)
+    lengths = get_lengths(U["phi"], G, h)
 
     F_LW = get_lift(lengths["Lwl"], G["c"], v, aoa)
     F_LA = get_lift(lengths["Lal"], G["c"], v, aoa)
     F_RW = get_lift(lengths["Rwl"], G["c"], v, aoa)
     F_RA = get_lift(lengths["Ral"], G["c"], v, aoa)
     
-    Thrust = get_thrust(fixed)
+    Thrust = get_thrust(U["dxdt"])
 
     T_LW = F_LW*lengths["Lwa"]
     T_LA = F_LA*lengths["Laa"]
@@ -160,7 +161,7 @@ def FE_next(U, dt, B, G, h, v):
     q = 0 #pitch angle
     aoa = aoi + q
 
-    accels = compute_accels(B, phi, G, h, v, aoa)
+    accels = compute_accels(U[-1], B, phi, G, h, v, aoa)
 
     #U = [t, x, dxdt, y, dydt, z, dzdt, p, dpdt, q, dqdt, r, drdt]
     """
