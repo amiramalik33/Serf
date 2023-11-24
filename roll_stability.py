@@ -8,7 +8,10 @@ Hopefully, I will also be able to inject disturbances to height and angle
 
 TO MATH OUT:
     probably change how CG location is defined, and/or length to tail
-    is left bank angle positive or negative? idk, but make sure you're consistent
+    ENSURE PROPER SIGNS:
+        p, roll, -> right is positive
+        q, pitch -> nose up is positive
+        r, yaw,  -> nose right is positive
     Put all set variables in a dictionary, or global
     All lengths per time step should be in a dictionary
     Forces to Torques (including angles :( )
@@ -25,7 +28,7 @@ TO MATH OUT:
 
 from math import *
 
-def get_lengths(phi, gamma, Ll, Rl, lb, h):
+def get_lengths(p, gamma, Ll, Rl, lb, h):
     """
     Based on some geometry, we can get:
     Laa - the moment arm to the midpoint of the left foil above water
@@ -39,7 +42,7 @@ def get_lengths(phi, gamma, Ll, Rl, lb, h):
     
     given the:
     
-    phi - bank angle, in radians, left = positive
+    p - bank angle, in radians, left = positive
     gamma - the foil angle to vertical axis, in radians
     Ll - total length of left foil
     Rl - total length of right foil (= Ll)
@@ -47,15 +50,15 @@ def get_lengths(phi, gamma, Ll, Rl, lb, h):
     """
     
     #Get foil length in air
-    if phi >= 0:
-        Lal = h/sin(pi/2-phi-gamma) - lb
-        Ral = h/cos(phi+gamma) - lb
-    elif phi < 0:
-        phi = abs(phi)
-        Ral = h/sin(pi/2-phi-gamma) - lb
-        Lal = h/cos(phi+gamma) - lb   
+    if p >= 0:
+        Lal = h/sin(pi/2-p-gamma) - lb
+        Ral = h/cos(p+gamma) - lb
+    elif p < 0:
+        p = abs(p)
+        Ral = h/sin(pi/2-p-gamma) - lb
+        Lal = h/cos(p+gamma) - lb   
     else:
-        raise Exception('Phi undefined in get_lengths')
+        raise Exception('p undefined in get_lengths')
     
     #Get foil length in water
     Lwl = Ll - Lal - lb
@@ -160,85 +163,117 @@ def get_thrust(v):
     
     return Thrust
     
-def compute_accels(U, B, G, h, v, aoa):
+def compute_accels(U, B, G):
     
-    lengths = get_lengths(U["phi"], G, h)
+    z = U(3)
+    v = U(2)
+    q = U(7)
+    aoa = G["aoi"] + q
+
+    lengths = get_lengths(U["p"], G, z)
 
     F_LW = get_lift(lengths["Lwl"], G["c"], v, aoa)
     F_LA = get_lift(lengths["Lal"], G["c"], v, aoa)
     F_RW = get_lift(lengths["Rwl"], G["c"], v, aoa)
     F_RA = get_lift(lengths["Ral"], G["c"], v, aoa)
+    #ADD tail lift
 
     D_LW = get_drag(lengths["Lwl"], G["c"], v, aoa)
     D_LA = get_drag(lengths["Lal"], G["c"], v, aoa)
     D_RW = get_drag(lengths["Rwl"], G["c"], v, aoa)
     D_RA = get_drag(lengths["Ral"], G["c"], v, aoa)
+    #ADD tail drag
     
     Thrust = get_thrust(U["dxdt"])
 
+    #ROLL TORQUE
+    #from main foil lift, multiplied by changing lengths
     Tp_LW = F_LW*lengths["Lwa"]
     Tp_LA = F_LA*lengths["Laa"]
     Tp_RW = F_RW*lengths["Rwa"]
     Tp_RA = F_RA*lengths["Raa"]
+    #from main foil drag, is zero, because in-plane
+    #from tail lift, multiplied by strut length when roll angle is nonzero
+    #ADD tail lift times sin(bank) times tail strut length
+    #from tail drag, is zero, because in-plane
 
-    #ADD tail drag to Fx, Tq
-    #ADD foil drag to Tq 
-    #ADD tail lift to Fz, Tq
-    #ADD modification of forces by pitch, roll, yaw angle
+    #PITCH TORQUE
+    #from main foil lift, multiplied by distance from foil to CG
+    Tq_LW = F_LW*sin(gamma)*G["LM"]
+    Tq_LA = F_LA*sin(gamma)*G["LM"]
+    Tq_RW = F_RW*sin(gamma)*G["LM"]
+    Tq_RA = F_RA*sin(gamma)*G["LM"]
+    #from main foil drag, multiplied by changing lengths
+    Tq_FD = D_LW*lengths["Lwa"] + D_LA*lengths["Laa"] + D_RW*lengths["Rwa"] + D_RA*lengths["Raa"]
+    #ADD tail drag times sin(pitch)
+    #ADD tail lift
+    
+    #YAW TORQUE
+    #from main foil lift, multiplied by length, Lwa*sin(gamma)
+    #from main foil drag, multiplied by length, Lwa*sin(gamma)
+    #from tail lift, but only with roll angle (and yaw angle?)
+    #from tail drag, but only with roll angle (and yaw angle?)
+
+    #ADD transform forces by pitch, roll angle (and yaw angle, if 6DOF)
     Fx = Thrust - (D_LW + D_LA + D_RW + D_RA)
-    Fy = F_LW*cos(gamma) + F_LA*cos(gamma) - (F_RW*cos(gamma) + F_RA*cos(gamma))
-    Fz = F_LW*sin(gamma) + F_LA*sin(gamma) + (F_RW*sin(gamma) + F_RA*sin(gamma))
+    #Fy = F_LW*cos(gamma) + F_LA*cos(gamma) - (F_RW*cos(gamma) + F_RA*cos(gamma))
+    Fz = F_LW*sin(gamma) + F_LA*sin(gamma) + (F_RW*sin(gamma) + F_RA*sin(gamma)) - B["m"]*9.81
 
     Tp = (Tp_LW + Tp_LA) - (Tp_RW + Tp_RA)
-    Tq = (F_LW*sin(gamma) + F_LA*sin(gamma) + (F_RW*sin(gamma) + F_RA*sin(gamma)))*B["CGx"]
-    Tr = 0
-    
-    d2phi_dt2 = Tp/B["Iyy"]
-    
-    d2y_dt2 = Fy/B["m"]
-    
-    return [d2phi_dt2, d2y_dt2]
-    
-    
-def FE_next(U, dt, B, G, h, v):
-    
-    q = 0 #pitch angle
-    aoa = aoi + q
+    Tq = (Tq_LW + Tq_LA + Tq_RW + Tq_RA) - Tq_FD
+    #Tr = 0
 
-    accels = compute_accels(U[-1], B, phi, G, h, v, aoa)
+    d2x_dt2 = Fx/B["m"]
+    d2z_dt2 = Fz/B["m"]
+    
+    d2p_dt2 = Tp/B["Ixx"]
+    d2q_dt2 = Tq/B["Iyy"]
+    
+    return [d2x_dt2, d2z_dt2, d2p_dt2, d2q_dt2]
+    
+    
+def FE_next(U, dt, accels):
 
-    #U = [t, x, dxdt, y, dydt, z, dzdt, p, dpdt, q, dqdt, r, drdt]
+    #U = [t, x, dxdt, z, dzdt, p, dpdt, q, dqdt]
     """
     t, time
     x, forward position
-    dxdt is related to z!
-    y, lateral position (maybe not needed)
     z, height above water
     p, roll
     q, pitch
-    r, yaw
     """
-    
-    #THE REST OF THIS IS COPY PASTE FROM TAKEOFF SIM
-    t      = U(1, -1);
-    y      = U(2, -1);
-    phi    = U(3, -1);
-    dydt   = U(4, -1);
-    dphidt = U(5, -1);
 
-    d2phi_dt2 = accels[0]
-    d2y_dt2 = accels[1] - m*9.81
+    d2x_dt2 = accels[0]
+    d2z_dt2 = accels[1]
+    d2p_dt2 = accels[2]
+    d2q_dt2 = accels[3]
+    
+    t      = U(0, -1)
+    x      = U(1, -1)
+    dxdt   = U(2, -1)
+    z      = U(3, -1)
+    dzdt   = U(4, -1)
+    p      = U(5, -1)
+    dpdt   = U(6, -1)
+    q      = U(7, -1)
+    dqdt   = U(8, -1)
     
     #Forward Euler
     t_next = t + dt
+
+    dxdt_next = dxdt + d2x_dt2*dt
+    x_next = x + dxdt*dt
     
-    dydt_next = dydt + d2y_dt2*dt
-    y_next = y + dydt*dt
+    dzdt_next = dzdt + d2z_dt2*dt
+    z_next = z + dzdt*dt
     
-    dphidt_next = dphidt + d2phi_dt2*dt
-    phi_next = phi + dphidt*dt
+    dpdt_next = dpdt + d2p_dt2*dt
+    p_next = p + dpdt*dt
+
+    dqdt_next = dqdt + d2q_dt2*dt
+    q_next = q + dqdt*dt
     
-    U_next = [t_next, y_next, phi_next, dydt_next, dphidt_next]
+    U_next = [t_next, x_next, z_next, p_next, q_next, dxdt_next, dzdt_next, dpdt_next, dqdt_next]
     
     return U_next
 
@@ -248,9 +283,6 @@ m = 2000 #lbs, weighed
 Ixx = 1 #kg/m^2, estimated
 Iyy = 1 #kg/m^2, estimated
 Izz = 1 #kg/m^2, estimated
-CGx = 1 #m, measured from foil center of pressure
-CGy = 0 #m, centerline
-CGz = 1 #m, measured from foil focus
 
 #Geometric Quantities
 L = 2   #m, foil length, measured
@@ -258,18 +290,32 @@ lb = 1  #m, from foil to center of gravity...??!
 c = .5  #m, chord of foil, measured
 aoi = 2 #deg, angle of incidence of foils, measured
 gamma = 25 #deg, foil anhedral, measured
+LM = 0.5 #m, length of main foil cp from boat cg
+LT = 3.0 #m, length of tail foil cp from boat cg
+TS = 2.0 #m, length of foil strut from longitudinal axis
 
 B = {"mass": m/2.205,
      "Ixx": Ixx,
      "Iyy": Iyy,
-     "Izz": Izz,
-     "CGx": CGx,
-     "CGy": CGy,
-     "CGz": CGz,}
+     "Izz": Izz}
 G = {"Ll": L,
      "Rl": L,
      "lb": lb,
      "c": c,
      "aoi": aoi*pi/180,
-     "gamma": gamma*pi/180}
+     "gamma": gamma*pi/180,
+     "LM": LM,
+     "LT": LT}
+
+def single_run():
+
+    dt = .1
+    U = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+    #if starting at steady state and non-zero, relate dxdt & z by lift question (somehow..)
+    
+    accels = compute_accels(U, B, G)
+    
+    FE_next(accels, dt)
+
+    #do for 1000 time steps or whatever, check takeoff sim logic
  
