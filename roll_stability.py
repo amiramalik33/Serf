@@ -7,6 +7,7 @@ the length of the foil to the CG of the boat, a system response can be made.
 Hopefully, I will also be able to inject disturbances to height and angle
 
 TO MATH OUT:
+    probably change how CG location is defined, and/or length to tail
     is left bank angle positive or negative? idk, but make sure you're consistent
     Put all set variables in a dictionary, or global
     All lengths per time step should be in a dictionary
@@ -180,15 +181,16 @@ def compute_accels(U, B, G, h, v, aoa):
     Tp_RW = F_RW*lengths["Rwa"]
     Tp_RA = F_RA*lengths["Raa"]
 
-    #ADD tail drag to Fx
-    #ADD tail lift to Fz
+    #ADD tail drag to Fx, Tq
+    #ADD foil drag to Tq 
+    #ADD tail lift to Fz, Tq
     #ADD modification of forces by pitch, roll, yaw angle
     Fx = Thrust - (D_LW + D_LA + D_RW + D_RA)
     Fy = F_LW*cos(gamma) + F_LA*cos(gamma) - (F_RW*cos(gamma) + F_RA*cos(gamma))
     Fz = F_LW*sin(gamma) + F_LA*sin(gamma) + (F_RW*sin(gamma) + F_RA*sin(gamma))
 
     Tp = (Tp_LW + Tp_LA) - (Tp_RW + Tp_RA)
-    Tq = 0
+    Tq = (F_LW*sin(gamma) + F_LA*sin(gamma) + (F_RW*sin(gamma) + F_RA*sin(gamma)))*B["CGx"]
     Tr = 0
     
     d2phi_dt2 = Tp/B["Iyy"]
@@ -246,10 +248,13 @@ m = 2000 #lbs, weighed
 Ixx = 1 #kg/m^2, estimated
 Iyy = 1 #kg/m^2, estimated
 Izz = 1 #kg/m^2, estimated
+CGx = 1 #m, measured from foil center of pressure
+CGy = 0 #m, centerline
+CGz = 1 #m, measured from foil focus
 
 #Geometric Quantities
 L = 2   #m, foil length, measured
-lb = 1  #m, length of foil to mass center, measured UNCORRECTED
+lb = 1  #m, from foil to center of gravity...??!
 c = .5  #m, chord of foil, measured
 aoi = 2 #deg, angle of incidence of foils, measured
 gamma = 25 #deg, foil anhedral, measured
@@ -257,7 +262,10 @@ gamma = 25 #deg, foil anhedral, measured
 B = {"mass": m/2.205,
      "Ixx": Ixx,
      "Iyy": Iyy,
-     "Izz": Izz}
+     "Izz": Izz,
+     "CGx": CGx,
+     "CGy": CGy,
+     "CGz": CGz,}
 G = {"Ll": L,
      "Rl": L,
      "lb": lb,
