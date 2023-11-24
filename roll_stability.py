@@ -67,13 +67,13 @@ def get_lengths(phi, gamma, Ll, Rl, lb, h):
     Rwa = lb + Ral + Rwl/2
 
     lengths = {"Laa": Laa,
-         "Lwa": Lwa,
-         "Raa": Raa,
-         "Rwa": Rwa,
-         "Lwl": Lwl,
-         "Lal": Lal,
-         "Rwl": Rwl,
-         "Ral": Ral}
+               "Lwa": Lwa,
+               "Raa": Raa,
+               "Rwa": Rwa,
+               "Lwl": Lwl,
+               "Lal": Lal,
+               "Rwl": Rwl,
+               "Ral": Ral}
     
     return lengths
 
@@ -123,18 +123,14 @@ def get_thrust(fixed):
     
     return Thrust
     
-def compute_accels(I, m, phi, gamma, Ll, Rl, lb, h, c, v, incidence, fixed):
+def compute_accels(B, phi, G, h, v, aoa):
     
-    lengths = get_lengths(phi, gamma, Ll, Rl, lb, h)
-    
-    q = 0 #pitch angle
+    lengths = get_lengths(phi, G, h)
 
-    aoa = incidence + q
-
-    F_LW = get_lift(lengths["Lwl"], c, v, aoa)
-    F_LA = get_lift(lengths["Lal"], c, v, aoa)
-    F_RW = get_lift(lengths["Rwl"], c, v, aoa)
-    F_RA = get_lift(lengths["Ral"], c, v, aoa)
+    F_LW = get_lift(lengths["Lwl"], G["c"], v, aoa)
+    F_LA = get_lift(lengths["Lal"], G["c"], v, aoa)
+    F_RW = get_lift(lengths["Rwl"], G["c"], v, aoa)
+    F_RA = get_lift(lengths["Ral"], G["c"], v, aoa)
     
     Thrust = get_thrust(fixed)
 
@@ -145,28 +141,32 @@ def compute_accels(I, m, phi, gamma, Ll, Rl, lb, h, c, v, incidence, fixed):
 
     Fx = Thrust
     Fy = F_LW*cos(gamma) + F_LA*cos(gamma) - (F_RW*cos(gamma) + F_RA*cos(gamma))
+    #ADD: tail lift
     Fz = F_LW*sin(gamma) + F_LA*sin(gamma) + (F_RW*sin(gamma) + F_RA*sin(gamma))
 
     Tp = (T_LW + T_LA) - (T_RW + T_RA)
     Tq = 0
     Tr = 0
     
-    d2phi_dt2 = Tp/I
+    d2phi_dt2 = Tp/B["Iyy"]
     
-    d2y_dt2 = Fy/m
+    d2y_dt2 = Fy/B["m"]
     
     return [d2phi_dt2, d2y_dt2]
     
     
-def FE_next(U, dt, I, m, phi, gamma, Ll, Rl, lb, h, c, v, aoa):
+def FE_next(U, dt, B, G, h, v):
     
-    accels = compute_accels(I, m, phi, gamma, Ll, Rl, lb, h, c, v, aoa)
+    q = 0 #pitch angle
+    aoa = aoi + q
+
+    accels = compute_accels(B, phi, G, h, v, aoa)
 
     #U = [t, x, dxdt, y, dydt, z, dzdt, p, dpdt, q, dqdt, r, drdt]
     """
     t, time
     x, forward position
-    dxdt is related to z at steady state
+    dxdt is related to z!
     y, lateral position (maybe not needed)
     z, height above water
     p, roll
@@ -198,5 +198,27 @@ def FE_next(U, dt, I, m, phi, gamma, Ll, Rl, lb, h, c, v, aoa):
     return U_next
 
     
-    
-    
+#Balance Quantities
+m = 2000 #lbs, weighed
+Ixx = 1 #kg/m^2, estimated
+Iyy = 1 #kg/m^2, estimated
+Izz = 1 #kg/m^2, estimated
+
+#Geometric Quantities
+L = 2   #m, foil length, measured
+lb = 1  #m, length of foil to mass center, measured UNCORRECTED
+c = .5  #m, chord of foil, measured
+aoi = 2 #deg, angle of incidence of foils, measured
+gamma = 25 #deg, foil anhedral, measured
+
+B = {"mass": m/2.205,
+     "Ixx": Ixx,
+     "Iyy": Iyy,
+     "Izz": Izz}
+G = {"Ll": L,
+     "Rl": L,
+     "lb": lb,
+     "c": c,
+     "aoi": aoi*pi/180,
+     "gamma": gamma*pi/180}
+ 
