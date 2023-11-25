@@ -7,28 +7,23 @@ the length of the foil to the CG of the boat, a system response can be made.
 Hopefully, I will also be able to inject disturbances to height and angle
 
 TO MATH OUT:
-    probably change how CG location is defined, and/or length to tail
-    ENSURE PROPER SIGNS:
+    DOUBLE CHECK PROPER SIGNS:
         p, roll, -> right is positive
         q, pitch -> nose up is positive
         r, yaw,  -> nose right is positive
-    Put all set variables in a dictionary, or global
-    All lengths per time step should be in a dictionary
-    Forces to Torques (including angles :( )
-    Break up forcing function: torques are handled in each axis separately
+    Convert forces/torques to body angles!
+    transform the CG downward (the cg is currently assumed to be at the 
+        intersection of the two foils extended above the boat, which is waaaay too high)
 
     Long Term:
         Find max bank angle as function of foil length
         Create proper VDB!
-        transform the CG downward (the cg is currently assumed to be at the 
-            intersection of the two foils extended above
-            the boat, which is waaaay too high)
         able to inject noise into h (height), bank, and pitch, also other variables if it's easy
 """
 
 from math import *
 
-def get_lengths(p, gamma, Ll, Rl, lb, h):
+def get_lengths(p, G, h):
     """
     Based on some geometry, we can get:
     Laa - the moment arm to the midpoint of the left foil above water
@@ -47,7 +42,13 @@ def get_lengths(p, gamma, Ll, Rl, lb, h):
     Ll - total length of left foil
     Rl - total length of right foil (= Ll)
     lb - the length of the foil inside the boat to the cg
+    h - height of CG over water
     """
+
+    gamma = G["gamma"]
+    Ll = G["Ll"]
+    Rl = G["Rl"]
+    lb = G["lb"]
     
     #Get foil length in air
     if p >= 0:
@@ -151,6 +152,35 @@ def get_drag(b, c, v, aoa):
     
     return D
 
+def tail_lift(v, aoa):
+    """
+    Get lift for submerged tail
+    Uses aero database to look up cL given AOA
+    """
+    rho = 998
+
+    S = 1
+    cL = .1
+    
+    L = 1/2*cL*S*rho*(v**2)
+    
+    return L
+
+def tail_drag(v, aoa):
+    """
+    Get drag for submerged tail
+    Uses aero database to look up cL given AOA
+    """
+
+    rho = 998
+
+    S = 1
+    cD = 1
+
+    L = 1/2*cD*S*rho*(v**2)
+
+    return L
+
 def get_thrust(v):
     
     force = 100 #Newtons
@@ -169,6 +199,7 @@ def compute_accels(U, B, G):
     v = U(2)
     q = U(7)
     aoa = G["aoi"] + q
+    aoa_t = G["aoi_t"] + q
 
     lengths = get_lengths(U["p"], G, z)
 
@@ -176,13 +207,13 @@ def compute_accels(U, B, G):
     F_LA = get_lift(lengths["Lal"], G["c"], v, aoa)
     F_RW = get_lift(lengths["Rwl"], G["c"], v, aoa)
     F_RA = get_lift(lengths["Ral"], G["c"], v, aoa)
-    #ADD tail lift
+    F_TF = tail_lift(v, aoa_t) #assumes tail force is -x direction
 
     D_LW = get_drag(lengths["Lwl"], G["c"], v, aoa)
     D_LA = get_drag(lengths["Lal"], G["c"], v, aoa)
     D_RW = get_drag(lengths["Rwl"], G["c"], v, aoa)
     D_RA = get_drag(lengths["Ral"], G["c"], v, aoa)
-    #ADD tail drag
+    D_TF = tail_drag(v, aoa_t)
     
     Thrust = get_thrust(U["dxdt"])
 
@@ -193,8 +224,7 @@ def compute_accels(U, B, G):
     Tp_RW = F_RW*lengths["Rwa"]
     Tp_RA = F_RA*lengths["Raa"]
     #from main foil drag, is zero, because in-plane
-    #from tail lift, multiplied by strut length when roll angle is nonzero
-    #ADD tail lift times sin(bank) times tail strut length
+    #from tail lift, is zero, because symmetric
     #from tail drag, is zero, because in-plane
 
     #PITCH TORQUE
@@ -205,8 +235,9 @@ def compute_accels(U, B, G):
     Tq_RA = F_RA*sin(gamma)*G["LM"]
     #from main foil drag, multiplied by changing lengths
     Tq_FD = D_LW*lengths["Lwa"] + D_LA*lengths["Laa"] + D_RW*lengths["Rwa"] + D_RA*lengths["Raa"]
-    #ADD tail drag times sin(pitch)
-    #ADD tail lift
+    #from tail foil, multiplied by fixed distances
+    Tq_TL = F_TF*G["LT"]
+    Tq_TD = D_TF*G["TS"]
     
     #YAW TORQUE
     #from main foil lift, multiplied by length, Lwa*sin(gamma)
@@ -216,12 +247,12 @@ def compute_accels(U, B, G):
 
     #ADD transform forces by pitch, roll angle (and yaw angle, if 6DOF)
     Fx = Thrust - (D_LW + D_LA + D_RW + D_RA)
-    #Fy = F_LW*cos(gamma) + F_LA*cos(gamma) - (F_RW*cos(gamma) + F_RA*cos(gamma))
-    Fz = F_LW*sin(gamma) + F_LA*sin(gamma) + (F_RW*sin(gamma) + F_RA*sin(gamma)) - B["m"]*9.81
+    #Fy = F_LW*cos(gamma) + F_LA*cos(gamma) - (F_RW*cos(gamma) + F_RA*cos(gamma)) #6DOF
+    Fz = F_LW*sin(gamma) + F_LA*sin(gamma) + (F_RW*sin(gamma) + F_RA*sin(gamma)) - B["m"]*9.81 + F_TF
 
     Tp = (Tp_LW + Tp_LA) - (Tp_RW + Tp_RA)
-    Tq = (Tq_LW + Tq_LA + Tq_RW + Tq_RA) - Tq_FD
-    #Tr = 0
+    Tq = (Tq_LW + Tq_LA + Tq_RW + Tq_RA) - (Tq_FD + Tq_TD) + Tq_TL
+    #Tr = 0 #6DOF
 
     d2x_dt2 = Fx/B["m"]
     d2z_dt2 = Fz/B["m"]
@@ -288,7 +319,8 @@ Izz = 1 #kg/m^2, estimated
 L = 2   #m, foil length, measured
 lb = 1  #m, from foil to center of gravity...??!
 c = .5  #m, chord of foil, measured
-aoi = 2 #deg, angle of incidence of foils, measured
+aoi = 2 #deg, angle of incidence of main foils, measured
+aoi_t = -2 #deg, angle of incidence of tail foil, measured
 gamma = 25 #deg, foil anhedral, measured
 LM = 0.5 #m, length of main foil cp from boat cg
 LT = 3.0 #m, length of tail foil cp from boat cg
@@ -303,6 +335,7 @@ G = {"Ll": L,
      "lb": lb,
      "c": c,
      "aoi": aoi*pi/180,
+     "aoi_t": aoi_t*pi/180,
      "gamma": gamma*pi/180,
      "LM": LM,
      "LT": LT}
