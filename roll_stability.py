@@ -4,7 +4,7 @@ Roll Stability of a Surface-Piercing Hydrofoil Boat with a single "V-Foil"
 Given a symmetric V-foil, length of foil, angle of foil to vertical axis, and
 the length of the foil to the CG of the boat, a system response can be made.
 
-Hopefully, I will also be able to inject disturbances to height and angle
+We can also inject disturbances to height, bank, and pitch, to assess system disturbance rejection!
 
 TO MATH OUT:
     DOUBLE CHECK PROPER SIGNS:
@@ -124,13 +124,11 @@ def get_cD(aoa):
     
     return aoa/aoa
 
-def get_lift(b, c, v, aoa):
+def get_lift(rho, b, c, v, aoa):
     """
     Get lift for a rectangular wing
     Uses aero database to look up cL given AOA
     """
-    
-    rho = 998
     
     cL = get_cL(aoa)
     
@@ -138,13 +136,11 @@ def get_lift(b, c, v, aoa):
     
     return L
 
-def get_drag(b, c, v, aoa):
+def get_drag(rho, b, c, v, aoa):
     """
     Get lift for a rectangular wing
     Uses aero database to look up cL given AOA
     """
-    
-    rho = 998
     
     cD = get_cD(aoa)
     
@@ -195,6 +191,9 @@ def get_thrust(v):
     
 def compute_accels(U, B, G):
     
+    pw = 998
+    pa = 1.225
+
     z = U(3)
     v = U(2)
     q = U(7)
@@ -203,16 +202,16 @@ def compute_accels(U, B, G):
 
     lengths = get_lengths(U["p"], G, z)
 
-    F_LW = get_lift(lengths["Lwl"], G["c"], v, aoa)
-    F_LA = get_lift(lengths["Lal"], G["c"], v, aoa)
-    F_RW = get_lift(lengths["Rwl"], G["c"], v, aoa)
-    F_RA = get_lift(lengths["Ral"], G["c"], v, aoa)
+    F_LW = get_lift(pw, lengths["Lwl"], G["c"], v, aoa)
+    F_LA = get_lift(pa, lengths["Lal"], G["c"], v, aoa)
+    F_RW = get_lift(pw, lengths["Rwl"], G["c"], v, aoa)
+    F_RA = get_lift(pa, lengths["Ral"], G["c"], v, aoa)
     F_TF = tail_lift(v, aoa_t) #assumes tail force is -x direction
 
-    D_LW = get_drag(lengths["Lwl"], G["c"], v, aoa)
-    D_LA = get_drag(lengths["Lal"], G["c"], v, aoa)
-    D_RW = get_drag(lengths["Rwl"], G["c"], v, aoa)
-    D_RA = get_drag(lengths["Ral"], G["c"], v, aoa)
+    D_LW = get_drag(pw, lengths["Lwl"], G["c"], v, aoa)
+    D_LA = get_drag(pa, lengths["Lal"], G["c"], v, aoa)
+    D_RW = get_drag(pw, lengths["Rwl"], G["c"], v, aoa)
+    D_RA = get_drag(pa, lengths["Ral"], G["c"], v, aoa)
     D_TF = tail_drag(v, aoa_t)
     
     Thrust = get_thrust(U["dxdt"])
@@ -308,6 +307,37 @@ def FE_next(U, dt, accels):
     
     return U_next
 
+def steady_state(B, G, v, h):
+    c = B["c"]
+    cl = get_cL(G["aoi"])
+    Ll = G["Ll"]
+    lb = G["lb"]
+    gamma = G["gamma"]
+    g = 9.81
+    m = B["m"]
+    pa = 1.225
+    pw = 998
+
+    if v == 0:
+        v = sqrt((m*g)/(c*cl*((h/cos(gamma)-lb)*pa+(Ll-h/cos(gamma))*pw)))
+        return v
+    elif h == 0:
+        h = (cos(gamma)/(pa-pw))*(lb*pa-Ll*pw+c*cl/(m*g)*(v**2))
+        return h
+    else:
+        return 0
+
+def single_run():
+
+    dt = .1
+    U = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+    #if starting at steady state and non-zero, use steady_state()
+    
+    accels = compute_accels(U, B, G)
+    
+    FE_next(accels, dt)
+
+    #do for 1000 time steps or whatever, check takeoff sim logic
     
 #Balance Quantities
 m = 2000 #lbs, weighed
@@ -339,16 +369,4 @@ G = {"Ll": L,
      "gamma": gamma*pi/180,
      "LM": LM,
      "LT": LT}
-
-def single_run():
-
-    dt = .1
-    U = [0, 0, 0, 0, 0, 0, 0, 0, 0]
-    #if starting at steady state and non-zero, relate dxdt & z by lift question (somehow..)
-    
-    accels = compute_accels(U, B, G)
-    
-    FE_next(accels, dt)
-
-    #do for 1000 time steps or whatever, check takeoff sim logic
  
