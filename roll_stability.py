@@ -22,6 +22,7 @@ TO MATH OUT:
 """
 
 from math import *
+import fluids as flu
 
 def get_lengths(p, G, h):
     """
@@ -82,101 +83,6 @@ def get_lengths(p, G, h):
     
     return lengths
 
-def get_cL(aoa):
-    """
-    Returns lift coefficient given AOA
-    """
-    
-    """
-    #Simple Lookup Aero Database for Modified Airfoil
-    
-    cLs = {0.1:0.2,
-           0.2:0.3,
-           0.3:0.4
-        }
-    
-    try:
-        cL = cLs[round(aoa,1)]
-    except:
-        print("AOA out of range of ADB")
-    """
-    
-    return aoa/aoa
-
-def get_cD(aoa):
-    """
-    Returns drag coefficient given AOA
-    """
-    
-    """
-    #Simple Lookup Aero Database for Modified Airfoil
-    
-    cDs = {0.1:0.2,
-           0.2:0.3,
-           0.3:0.4
-        }
-    
-    try:
-        cD = cDs[round(aoa,1)]
-    except:
-        print("AOA out of range of ADB")
-    """
-    
-    return aoa/aoa
-
-def get_lift(rho, b, c, v, aoa):
-    """
-    Get lift for a rectangular wing
-    Uses aero database to look up cL given AOA
-    """
-    
-    cL = get_cL(aoa)
-    
-    L = 1/2*cL*b*c*rho*(v**2)
-    
-    return L
-
-def get_drag(rho, b, c, v, aoa):
-    """
-    Get lift for a rectangular wing
-    Uses aero database to look up cL given AOA
-    """
-    
-    cD = get_cD(aoa)
-    
-    D = 1/2*cD*b*c*rho*(v**2)
-    
-    return D
-
-def tail_lift(v, aoa):
-    """
-    Get lift for submerged tail
-    Uses aero database to look up cL given AOA
-    """
-    rho = 998
-
-    S = 1
-    cL = .1
-    
-    L = 1/2*cL*S*rho*(v**2)
-    
-    return L
-
-def tail_drag(v, aoa):
-    """
-    Get drag for submerged tail
-    Uses aero database to look up cL given AOA
-    """
-
-    rho = 998
-
-    S = 1
-    cD = 1
-
-    L = 1/2*cD*S*rho*(v**2)
-
-    return L
-
 def get_thrust(v):
     
     force = 100 #Newtons
@@ -186,6 +92,7 @@ def get_thrust(v):
     speed_eff = v*.9
 
     Thrust = force*prop_eff*motor_eff*speed_eff/v
+    notes = "http://www.epi-eng.com/propeller_technology/selecting_a_propeller.htm"
     
     return Thrust
     
@@ -202,17 +109,17 @@ def compute_accels(U, B, G):
 
     lengths = get_lengths(U["p"], G, z)
 
-    F_LW = get_lift(pw, lengths["Lwl"], G["c"], v, aoa)
-    F_LA = get_lift(pa, lengths["Lal"], G["c"], v, aoa)
-    F_RW = get_lift(pw, lengths["Rwl"], G["c"], v, aoa)
-    F_RA = get_lift(pa, lengths["Ral"], G["c"], v, aoa)
-    F_TF = tail_lift(v, aoa_t) #assumes tail force is -x direction
+    F_LW = flu.foil_lift(pw, lengths["Lwl"], G["c"], v, aoa)
+    F_LA = flu.foil_lift(pa, lengths["Lal"], G["c"], v, aoa)
+    F_RW = flu.foil_lift(pw, lengths["Rwl"], G["c"], v, aoa)
+    F_RA = flu.foil_lift(pa, lengths["Ral"], G["c"], v, aoa)
+    F_TF = flu.tail_lift(v, aoa_t) #assumes tail force is -x direction
 
-    D_LW = get_drag(pw, lengths["Lwl"], G["c"], v, aoa)
-    D_LA = get_drag(pa, lengths["Lal"], G["c"], v, aoa)
-    D_RW = get_drag(pw, lengths["Rwl"], G["c"], v, aoa)
-    D_RA = get_drag(pa, lengths["Ral"], G["c"], v, aoa)
-    D_TF = tail_drag(v, aoa_t)
+    D_LW = flu.foil_drag(pw, lengths["Lwl"], G["c"], v, aoa)
+    D_LA = flu.foil_drag(pa, lengths["Lal"], G["c"], v, aoa)
+    D_RW = flu.foil_drag(pw, lengths["Rwl"], G["c"], v, aoa)
+    D_RA = flu.foil_drag(pa, lengths["Ral"], G["c"], v, aoa)
+    D_TF = flu.tail_drag(v, aoa_t)
     
     Thrust = get_thrust(U["dxdt"])
 
@@ -309,7 +216,7 @@ def FE_next(U, dt, accels):
 
 def steady_state(B, G, v, h):
     c = B["c"]
-    cl = get_cL(G["aoi"])
+    cl = flu.foil_cL(G["aoi"])
     Ll = G["Ll"]
     lb = G["lb"]
     gamma = G["gamma"]
