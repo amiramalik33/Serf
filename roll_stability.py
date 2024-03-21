@@ -89,10 +89,10 @@ def get_thrust(v):
 
     prop_eff = .99
     motor_eff = .80
-    speed_eff = v*.9
+    speed_eff = v/v
 
-    Thrust = force*prop_eff*motor_eff*speed_eff/v
-    notes = "http://www.epi-eng.com/propeller_technology/selecting_a_propeller.htm"
+    Thrust = force*prop_eff*motor_eff*speed_eff
+    notes = "https://www.grc.nasa.gov/www/k-12/airplane/propth.html"
     
     return Thrust
     
